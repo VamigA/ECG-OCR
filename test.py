@@ -27,13 +27,15 @@ class SyntheticECGBoxDataset(Dataset):
 		return self.count
 
 	def __getitem__(self, _):
-		image, signals = self.generator.generate()
+		image, signals, mm_per_sec = self.generator.generate()
 		image = torch.tensor(np.array(image, dtype=np.float32) / 255).unsqueeze(0)  # (1, H, W)
 		bboxes = [torch.tensor(signals[name]['bbox'], dtype=torch.float32) for name in self.lead_names]
 		presence = [1 if (bbox > 0).all() else 0 for bbox in bboxes]
 		bboxes = torch.stack(bboxes, dim=0)  # (12, 4)
 		presence = torch.tensor(presence, dtype=torch.float32)  # (12,)
-		return (image, bboxes, presence)
+		mmps = 1 if mm_per_sec == 50 else 0
+		mmps = torch.tensor(mmps, dtype=torch.float32)
+		return (image, bboxes, presence, mmps)
 
 # Модель
 class ECGBoxPresenceRegressor(nn.Module):
@@ -47,6 +49,7 @@ class ECGBoxPresenceRegressor(nn.Module):
 		self.dropout = nn.Dropout(0.2)
 		self.bbox_head = nn.Linear(512, 48)
 		self.presence_head = nn.Linear(512, 12)
+		self.mmps_head = nn.Linear(512, 1)
 
 	def forward(self, x):
 		x = self.backbone(x)
@@ -55,7 +58,8 @@ class ECGBoxPresenceRegressor(nn.Module):
 		x = self.dropout(x)
 		bbox = self.bbox_head(x).view(-1, 12, 4)
 		presence = self.presence_head(x)
-		return (bbox, presence)
+		mmps = self.mmps_head(x)
+		return (bbox, presence, mmps)
 
 def save_model(model, optimizer, epoch, path):
 	torch.save({
@@ -87,15 +91,16 @@ def main():
 	model.train()
 
 	for epoch in range(start_epoch, EPOCHS):
-		total_loss, total_bbox_loss, total_presence_loss = 0, 0, 0
+		total_loss, total_bbox_loss, total_presence_loss, total_mmps_loss = 0, 0, 0, 0
 		n_batches = len(dataloader)
-		pbar = tqdm(dataloader, desc=f'Epoch {epoch+1}/{EPOCHS}')
-		for images, bboxes, presence in pbar:
-			pred_bboxes, pred_presence = model(images)
+		bar = tqdm(dataloader, desc=f'Epoch {epoch+1}/{EPOCHS}')
+		for images, bboxes, presence, mmps in bar:
+			pred_bboxes, pred_presence, pred_mmps = model(images)
 			mask = (presence > 0.5)
 			bbox_loss = (((pred_bboxes - bboxes) ** 2).sum(-1) * mask).sum() / mask.sum().clamp(min=1)
 			presence_loss = nn.BCEWithLogitsLoss()(pred_presence, presence)
-			loss = bbox_loss + presence_loss
+			mmps_loss = nn.BCEWithLogitsLoss()(pred_mmps, mmps.unsqueeze(1))
+			loss = bbox_loss + presence_loss + mmps_loss
 
 			optimizer.zero_grad()
 			accelerator.backward(loss)
@@ -104,16 +109,19 @@ def main():
 			total_loss += loss.item()
 			total_bbox_loss += bbox_loss.item()
 			total_presence_loss += presence_loss.item()
-			pbar.set_postfix({
+			total_mmps_loss += mmps_loss.item()
+			bar.set_postfix({
 				'loss': f'{loss.item():.4f}',
 				'bbox': f'{bbox_loss.item():.4f}',
 				'pres': f'{presence_loss.item():.4f}',
+				'mmps': f'{mmps_loss.item():.4f}',
 			})
 
 		avg_loss = total_loss / n_batches
 		avg_bbox = total_bbox_loss / n_batches
 		avg_pres = total_presence_loss / n_batches
-		accelerator.print(f'Epoch {epoch+1}: Loss={avg_loss:.6f} | BBox={avg_bbox:.6f} | Presence={avg_pres:.6f}')
+		avg_mmps = total_mmps_loss / n_batches
+		accelerator.print(f'Epoch {epoch+1}: Loss={avg_loss:.6f} | BBox={avg_bbox:.6f} | Presence={avg_pres:.6f} | MMps={avg_mmps:.6f}')
 
 		if (epoch + 1) % SAVE_EVERY == 0 or (epoch + 1) == EPOCHS:
 			if accelerator.is_main_process:

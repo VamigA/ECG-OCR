@@ -73,6 +73,6 @@ class ECGDataGenerator:
 		for data in result.values():
 			del data['percentage']
 
-		return (gray, result)
+		return (gray, result, mm_per_sec)
 
 __all__ = ('ECGDataGenerator',)
