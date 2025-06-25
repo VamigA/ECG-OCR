@@ -175,6 +175,9 @@ class ECGSheetLinker:
 		elif lead.width > width:
 			lead = lead.crop((0, 0, width, lead.height))
 
+		if x >= canvas.width or y >= canvas.height:
+			return ('', (x, y, x, y))
+
 		canvas.paste(lead, (x, y), lead)
 
 		for i in itertools.count():
