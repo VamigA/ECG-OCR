@@ -6,6 +6,7 @@ import numpy as np
 import os
 from tqdm import tqdm
 from torchvision.models import resnet18, ResNet18_Weights
+import traceback
 
 from ECGDataGenerator import ECGDataGenerator
 
@@ -27,15 +28,25 @@ class SyntheticECGBoxDataset(Dataset):
 		return self.count
 
 	def __getitem__(self, _):
-		image, signals, mm_per_sec = self.generator.generate()
-		image = torch.tensor(np.array(image, dtype=np.float32) / 255).unsqueeze(0)  # (1, H, W)
-		bboxes = [torch.tensor(signals[name]['bbox'], dtype=torch.float32) for name in self.lead_names]
-		presence = [1 if (bbox > 0).all() else 0 for bbox in bboxes]
-		bboxes = torch.stack(bboxes, dim=0)  # (12, 4)
-		presence = torch.tensor(presence, dtype=torch.float32)  # (12,)
-		mmps = 1 if mm_per_sec == 50 else 0
-		mmps = torch.tensor(mmps, dtype=torch.float32)
-		return (image, bboxes, presence, mmps)
+		for _ in range(5):
+			try:
+				image, signals, mm_per_sec = self.generator.generate()
+				image = torch.tensor(np.array(image, dtype=np.float32) / 255).unsqueeze(0)  # (1, H, W)
+				bboxes = [torch.tensor(signals[name]['bbox'], dtype=torch.float32) for name in self.lead_names]
+				presence = [1 if (bbox > 0).all() else 0 for bbox in bboxes]
+				bboxes = torch.stack(bboxes, dim=0)  # (12, 4)
+				presence = torch.tensor(presence, dtype=torch.float32)  # (12,)
+				mmps = 1 if mm_per_sec == 50 else 0
+				mmps = torch.tensor(mmps, dtype=torch.float32)
+				return (image, bboxes, presence, mmps)
+			except Exception as e:
+				with open('ecg_data_gen_errors.log', 'a') as log:
+					log.write(f'[ERROR] {type(e).__name__}: {e}\n')
+					log.write(traceback.format_exc())
+
+				continue
+
+		raise
 
 # Модель
 class ECGBoxPresenceRegressor(nn.Module):
