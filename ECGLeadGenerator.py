@@ -6,26 +6,26 @@ from scipy.interpolate import interp1d
 from Utilities import get_font
 
 class ECGLeadGenerator:
-	__IMG_WIDTH = 1000
-	__IMG_HEIGHT = 150
-	__MM_PER_SEC = [25, 50]
-	__GRID_WIDTHS = [1, 2]
-	__GRID_COLORS = [(220, 220, 220), (255, 200, 200)]
-	__LINE_WIDTHS = [2, 3]
-	__LINE_COLORS = [(0, 0, 0), (50, 50, 50), (200, 0, 0)]
-	__LEAD_NAME_X_RANGE = (20, 100)
-	__LEAD_NAME_Y_RANGE = (20, 100)
-	__LEAD_NAME_FONTS = ['fonts/arial.ttf', 'fonts/times.ttf']
-	__LEAD_NAME_SIZE_RANGE = (20, 60)
-	__LEAD_NAME_COLORS = [(0, 0, 0), (50, 50, 50), (200, 0, 0)]
+	__IMG_WIDTH = 400
+	__IMG_HEIGHT = 60
+	__MM_PER_SEC = (25, 50)
+	__GRID_WIDTHS = (1, 2)
+	__GRID_COLORS = ((220, 220, 220), (255, 200, 200))
+	__LINE_WIDTHS = (1, 2)
+	__LINE_COLORS = ((0, 0, 0), (50, 50, 50), (200, 0, 0))
+	__LEAD_NAME_X_RANGE = (0, 36)
+	__LEAD_NAME_Y_RANGE = (0, 36)
+	__LEAD_NAME_FONTS = ('fonts/arial.ttf', 'fonts/times.ttf')
+	__LEAD_NAME_SIZE_RANGE = (12, 24)
+	__LEAD_NAME_COLORS = ((0, 0, 0), (50, 50, 50), (200, 0, 0))
 
 	__mm_per_sec = None
-	__pixels_per_mm = 5
-	__pixels_per_mv = 50
+	__pixels_per_mm = 2
+	__pixels_per_mv = 20
 	__grid_width = None
 	__grid_color = None
-	__grid_step_large = 25
-	__grid_step_small = 5
+	__grid_step_large = 10
+	__grid_step_small = 2
 	__line_width = None
 	__line_color = None
 	__lead_name_variants = True
@@ -36,6 +36,10 @@ class ECGLeadGenerator:
 	__lead_name_color = None
 
 	@property
+	def IMG_SIZE(self):
+		return (self.__IMG_WIDTH, self.__IMG_HEIGHT)
+
+	@property
 	def SIGNAL_TYPES(self):
 		return ('sin', 'zigzag', 'triangle', 'noise')
 
@@ -43,8 +47,27 @@ class ECGLeadGenerator:
 	def LEAD_NAMES(self):
 		return ('I', 'II', 'III', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6')
 
+	@property
+	def mm_per_sec(self):
+		return self.__mm_per_sec
+
+	@mm_per_sec.setter
+	def mm_per_sec(self, mm_per_sec):
+		if not isinstance(mm_per_sec, int) and mm_per_sec is not None:
+			raise TypeError('The mm_per_sec argument must be of type int or none!')
+
+		self.__mm_per_sec = mm_per_sec
+
+	@property
+	def pixels_per_mm(self):
+		return self.__pixels_per_mm
+
+	@property
+	def pixels_per_mv(self):
+		return self.__pixels_per_mv
+
 	@staticmethod
-	def generate_signal(signal_type='sin', scale_x=1, scale_y=1, duration=10, sampling_rate=250):
+	def generate_signal(signal_type='sin', scale_x=1, scale_y=1, duration=10, sampling_rate=100):
 		t = np.linspace(0, duration, duration * sampling_rate) / scale_x
 
 		if signal_type == 'sin':
@@ -54,7 +77,7 @@ class ECGLeadGenerator:
 		elif signal_type == 'triangle':
 			signal = 2 * np.abs(2 * (t % 1) - 1) - 1
 		elif signal_type == 'noise':
-			coarse_rate = random.randint(5, 100)
+			coarse_rate = random.randint(5, 40)
 			t_coarse = np.linspace(0, duration, duration * coarse_rate)
 			noise = np.random.normal(0, 0.33, len(t_coarse))
 
@@ -65,7 +88,7 @@ class ECGLeadGenerator:
 
 		return signal * scale_y
 
-	def generate_lead_image(self, signal, lead_name='I', sampling_rate=250):
+	def generate_lead_image(self, signal, lead_name='I', sampling_rate=100):
 		img = Image.new('RGBA', (self.__IMG_WIDTH, self.__IMG_HEIGHT), 'white')
 		draw = ImageDraw.Draw(img)
 
@@ -90,12 +113,20 @@ class ECGLeadGenerator:
 
 	def __draw_grid(self, draw):
 		width = random.choice(self.__GRID_WIDTHS) if self.__grid_width is None else self.__grid_width
-		color = random.choice(self.__GRID_COLORS) if self.__grid_color is None else self.__grid_color
+		color_small = random.choice(self.__GRID_COLORS) if self.__grid_color is None else self.__grid_color
+		color_large = tuple(value // 2 for value in color_small)
 
 		for x in range(0, self.__IMG_WIDTH, self.__grid_step_small):
-			draw.line((x, 0, x, self.__IMG_HEIGHT), color if x % self.__grid_step_large else tuple(np.array(color) // 2), width)
+			if x % self.__grid_step_large != 0:
+				draw.line((x, 0, x, self.__IMG_HEIGHT), color_small, width)
 		for y in range(0, self.__IMG_HEIGHT, self.__grid_step_small):
-			draw.line((0, y, self.__IMG_WIDTH, y), color if y % self.__grid_step_large else tuple(np.array(color) // 2), width)
+			if y % self.__grid_step_large != 0:
+				draw.line((0, y, self.__IMG_WIDTH, y), color_small, width)
+
+		for x in range(0, self.__IMG_WIDTH, self.__grid_step_large):
+			draw.line((x, 0, x, self.__IMG_HEIGHT), color_large, width)
+		for y in range(0, self.__IMG_HEIGHT, self.__grid_step_large):
+			draw.line((0, y, self.__IMG_WIDTH, y), color_large, width)
 
 	def __draw_line(self, draw, signal, sampling_rate=250):
 		mm_per_sec = random.choice(self.__MM_PER_SEC) if self.__mm_per_sec is None else self.__mm_per_sec

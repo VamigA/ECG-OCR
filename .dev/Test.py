@@ -1,10 +1,11 @@
 import numpy as np
 import tensorflow as tf
 
+tf.keras.mixed_precision.set_global_policy('mixed_float16')
+
 model = tf.keras.Sequential([
 	tf.keras.layers.Input((2048,)),
-	tf.keras.layers.Dense(2048, activation='relu'),
-	tf.keras.layers.Dense(2048, activation='relu'),
+	*[tf.keras.layers.Dense(8192, activation='sigmoid') for _ in range(10)],
 	tf.keras.layers.Dense(10),
 ])
 

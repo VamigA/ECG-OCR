@@ -49,10 +49,10 @@ class ECGLeadAugmentor:
 
 		coefficients = self.__find_coefficients(
 			[
-				(random.randint(-50, 50), random.randint(-50, 50)),
-				(w + random.randint(-50, 50), random.randint(-50, 50)),
-				(w + random.randint(-50, 50), h + random.randint(-50, 50)),
-				(random.randint(-50, 50), h + random.randint(-50, 50)),
+				(random.randint(-20, 20), random.randint(-20, 20)),
+				(w + random.randint(-20, 20), random.randint(-20, 20)),
+				(w + random.randint(-20, 20), h + random.randint(-20, 20)),
+				(random.randint(-20, 20), h + random.randint(-20, 20)),
 			],
 			[(0, 0), (w, 0), (w, h), (0, h)],
 		)
@@ -111,17 +111,17 @@ class ECGLeadAugmentor:
 		return Image.fromarray(res)
 
 	def __add_blur(self, img: Image.Image) -> Image.Image:
-		radius = random.uniform(0.5, 1.5)
+		radius = random.uniform(0.2, 0.6)
 		blur_filter = ImageFilter.GaussianBlur(radius)
 		return img.filter(blur_filter)
 
 	def __adjust_brightness(self, img: Image.Image) -> Image.Image:
-		factor = random.uniform(0.5, 1.5)
+		factor = random.uniform(0.7, 1.3)
 		enhancer = ImageEnhance.Brightness(img)
 		return enhancer.enhance(factor)
 
 	def __adjust_contrast(self, img: Image.Image) -> Image.Image:
-		factor = random.uniform(0.5, 1.5)
+		factor = random.uniform(0.7, 1.3)
 		enhancer = ImageEnhance.Contrast(img)
 		return enhancer.enhance(factor)
 

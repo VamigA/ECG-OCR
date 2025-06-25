@@ -1,6 +1,8 @@
 import numpy as np
 import tensorflow as tf
 
+tf.keras.mixed_precision.set_global_policy('mixed_float16')
+
 with tf.device('/GPU:0'):
 	part1 = tf.keras.Sequential([
 		tf.keras.layers.Input((2048,)),

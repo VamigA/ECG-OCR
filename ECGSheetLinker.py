@@ -6,17 +6,17 @@ import random
 from Utilities import get_font
 
 class ECGSheetLinker:
-	__CANVAS_WIDTH_RANGE = (1500, 3000)
-	__CANVAS_HEIGHT_RANGE = (1500, 3000)
-	__BACKGROUND_COLORS = [(0, 0, 0, 0), (0, 0, 0, 255), (255, 200, 200, 255), (255, 255, 255, 255)]
-	__MARGIN_RANGE = (0, 100)
-	__ROW_GAP_RANGE = (0, 100)
+	__CANVAS_WIDTH_RANGE = (500, 1000)
+	__CANVAS_HEIGHT_RANGE = (500, 1000)
+	__BACKGROUND_COLORS = ((0, 0, 0, 0), (0, 0, 0, 255), (255, 200, 200, 255), (255, 255, 255, 255))
+	__MARGIN_RANGE = (0, 20)
+	__ROW_GAP_RANGE = (0, 20)
 	__COLUMNS_RANGE = (1, 4)
-	__COLUMN_GAP_RANGE = (0, 10)
+	__COLUMN_GAP_RANGE = (0, 5)
 	__RANDOM_PLACE_ATTEMPTS = 50
-	__LABELS_FONTS = ['fonts/arial.ttf', 'fonts/times.ttf']
-	__LABELS_SIZE_RANGE = (20, 60)
-	__LABELS_COLORS = [(0, 0, 0), (50, 50, 50), (200, 0, 0)]
+	__LABELS_FONTS = ('fonts/arial.ttf', 'fonts/times.ttf')
+	__LABELS_SIZE_RANGE = (12, 24)
+	__LABELS_COLORS = ((0, 0, 0), (50, 50, 50), (200, 0, 0))
 
 	__canvas_size = None
 	__background_color = None
@@ -28,7 +28,7 @@ class ECGSheetLinker:
 	__row_gap = None
 	__columns = None
 	__column_gap = None
-	__column_min_width = 500
+	__column_min_width = 200
 	__rhythm_names = None
 	__rhythm_position = None
 	__shuffle_leads = True
