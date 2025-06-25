@@ -3,7 +3,7 @@ from PIL import Image, ImageDraw
 import random
 from scipy.interpolate import interp1d
 
-from Utilities import get_font
+from Utilities import staticproperty, classproperty, get_font
 
 class ECGLeadGenerator:
 	__IMG_WIDTH = 400
@@ -35,16 +35,16 @@ class ECGLeadGenerator:
 	__lead_name_size = None
 	__lead_name_color = None
 
-	@property
-	def IMG_SIZE(self):
-		return (self.__IMG_WIDTH, self.__IMG_HEIGHT)
+	@classproperty
+	def IMG_SIZE(cls):
+		return (cls.__IMG_WIDTH, cls.__IMG_HEIGHT)
 
-	@property
-	def SIGNAL_TYPES(self):
+	@staticproperty
+	def SIGNAL_TYPES():
 		return ('sin', 'zigzag', 'triangle', 'noise')
 
-	@property
-	def LEAD_NAMES(self):
+	@staticproperty
+	def LEAD_NAMES():
 		return ('I', 'II', 'III', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6')
 
 	@property

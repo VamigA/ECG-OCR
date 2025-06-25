@@ -1,5 +1,13 @@
 from PIL import ImageFont
 
+class staticproperty(property):
+	def __get__(self, *_):
+		return self.fget()
+
+class classproperty(property):
+	def __get__(self, _, objtype):
+		return self.fget(objtype)
+
 _font_cache = {}
 
 def get_font(path, size):
@@ -12,4 +20,4 @@ def get_font(path, size):
 
 	return _font_cache[key]
 
-__all__ = ('get_font',)
+__all__ = ('staticproperty', 'classproperty', 'get_font')

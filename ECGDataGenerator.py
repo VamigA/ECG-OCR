@@ -49,7 +49,7 @@ class ECGDataGenerator:
 				'signal': np.zeros(self.__SECONDS * self.__SAMPLING_RATE),
 				'bbox': (-1, -1, -1, -1),
 				'percentage': 0,
-			} for lead_name in self.__lead_generator.LEAD_NAMES
+			} for lead_name in ECGLeadGenerator.LEAD_NAMES
 		}
 
 		for key, (x_start, _, x_end, _) in layout.items():
@@ -61,7 +61,7 @@ class ECGDataGenerator:
 				lead_name = key
 
 			width = x_end - x_start
-			percentage = width / self.__lead_generator.IMG_SIZE[0]
+			percentage = width / ECGLeadGenerator.IMG_SIZE[0]
 			if percentage > result[lead_name]['percentage']:
 				duration = width / self.__lead_generator.pixels_per_mm / mm_per_sec
 				values = int(duration * self.__SAMPLING_RATE)
