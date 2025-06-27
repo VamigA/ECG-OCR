@@ -7,11 +7,12 @@ from neural.detection.ECGSyntheticDataset import ECGSyntheticDataset
 from neural.LearningEnvironment import LearningEnvironment
 
 class ECGDetectionLearning(LearningEnvironment):
-	__BATCH_SIZE = 32
+	__BATCH_SIZE = 8
 	__NUM_WORKERS = 2
 	__LEARNING_RATE = 2e-5
 
 	def setup(self):
+		self.__mse_loss = nn.MSELoss()
 		self.__bce_loss = nn.BCEWithLogitsLoss()
 
 		model = ECGDetectionModel()
@@ -22,15 +23,12 @@ class ECGDetectionLearning(LearningEnvironment):
 		return (model, dataloader, optimizer)
 
 	def train_step(self, model, _, batch):
-		images, target_bbox, target_presence, mmps = batch
-		pred_bbox, pred_presence, pred_mmps = model(images)
+		images, target_bbox, mmps = batch
+		pred_bbox, pred_mmps = model(images)
 
-		mask = target_presence > 0.5
-		bbox_loss = (((pred_bbox - target_bbox) ** 2).sum(2) * mask).sum() / mask.sum().clamp(min=1)
-		presence_loss = self.__bce_loss(pred_presence, target_presence)
-		mmps_loss = self.__bce_loss(pred_mmps, mmps.unsqueeze(1))
-
-		loss = bbox_loss + presence_loss + mmps_loss
+		bbox_loss = self.__mse_loss(pred_bbox, target_bbox)
+		mmps_loss = self.__bce_loss(pred_mmps, mmps)
+		loss = bbox_loss + mmps_loss
 		return loss
 
 __all__ = ('ECGDetectionLearning',)

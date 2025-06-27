@@ -8,8 +8,6 @@ from generator.ECGLeadGenerator import ECGLeadGenerator
 class ECGSyntheticDataset(Dataset):
 	__DATASET_SIZE = 50000
 	__IMAGE_SIZE = 1120
-	__GRID_SIZE = 35
-	__NUM_LEADS = 12
 
 	def __init__(self):
 		self.__generator = ECGDataGenerator()
@@ -19,34 +17,22 @@ class ECGSyntheticDataset(Dataset):
 
 	def __getitem__(self, _):
 		image, signals, mm_per_sec = self.__generator.generate()
-		image_array = np.array(image, dtype=np.float32)
-		image_tensor = torch.tensor(image_array / 255).unsqueeze(0)
+		image_tensor = torch.as_tensor(np.array(image, dtype=np.float32) / 255).unsqueeze(0)
+		target_bbox = torch.full((12, 4), -1, dtype=torch.float32)
 
-		target_bbox = torch.zeros((self.__NUM_LEADS, 4, self.__GRID_SIZE, self.__GRID_SIZE), dtype=torch.float32)
-		target_presence = torch.zeros((self.__NUM_LEADS, self.__GRID_SIZE, self.__GRID_SIZE), dtype=torch.float32)
-
-		for lead_index, lead_name in enumerate(ECGLeadGenerator.LEAD_NAMES):
-			bbox = np.array(signals[lead_name]['bbox'], dtype=np.float32)
-			if (bbox < 0).any():
+		for i, name in enumerate(ECGLeadGenerator.LEAD_NAMES):
+			x0, y0, x1, y1 = signals[name]['bbox']
+			if min(x0, y0, x1, y1) < 0:
 				continue
 
-			center_x = (bbox[0] + bbox[2]) / 2 / self.__IMAGE_SIZE
-			center_y = (bbox[1] + bbox[3]) / 2 / self.__IMAGE_SIZE
-			box_width = (bbox[2] - bbox[0]) / self.__IMAGE_SIZE
-			box_height = (bbox[3] - bbox[1]) / self.__IMAGE_SIZE
+			cx = (x0 + x1) / 2 / self.__IMAGE_SIZE
+			cy = (y0 + y1) / 2 / self.__IMAGE_SIZE
+			w = (x1 - x0) / self.__IMAGE_SIZE
+			h = (y1 - y0) / self.__IMAGE_SIZE
 
-			grid_x = min(int(center_x * self.__GRID_SIZE), self.__GRID_SIZE - 1)
-			grid_y = min(int(center_y * self.__GRID_SIZE), self.__GRID_SIZE - 1)
-			cell_x = center_x * self.__GRID_SIZE - grid_x
-			cell_y = center_y * self.__GRID_SIZE - grid_y
+			target_bbox[i] = torch.tensor([cx, cy, w, h], dtype=torch.float32)
 
-			target_bbox[lead_index, :, grid_y, grid_x] = torch.tensor(
-				[cell_x, cell_y, box_width, box_height], dtype=torch.float32)
-			target_presence[lead_index, grid_y, grid_x] = 1
-
-		mmps_label = 1 if mm_per_sec == 50 else 0
-		mmps_tensor = torch.tensor(mmps_label, dtype=torch.float32)
-
-		return (image_tensor, target_bbox, target_presence, mmps_tensor)
+		mmps_tensor = torch.tensor(mm_per_sec == 50, dtype=torch.float32)
+		return (image_tensor, target_bbox, mmps_tensor)
 
 __all__ = ('ECGSyntheticDataset',)
