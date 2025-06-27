@@ -16,9 +16,10 @@ class ECGSyntheticDataset(Dataset):
 		return self.__DATASET_SIZE
 
 	def __getitem__(self, _):
-		image, signals, mm_per_sec = self.__generator.generate()
+		image, signals, mm_per_sec = self.__generator.generate_no_errors()
 		image_tensor = torch.as_tensor(np.array(image, dtype=np.float32) / 255).unsqueeze(0)
-		target_bbox = torch.full((12, 4), -1, dtype=torch.float32)
+		target_bbox = torch.zeros((12, 4), dtype=torch.float32)
+		presence = torch.zeros(12, dtype=torch.float32)
 
 		for i, name in enumerate(ECGLeadGenerator.LEAD_NAMES):
 			x0, y0, x1, y1 = signals[name]['bbox']
@@ -31,8 +32,9 @@ class ECGSyntheticDataset(Dataset):
 			h = (y1 - y0) / self.__IMAGE_SIZE
 
 			target_bbox[i] = torch.tensor([cx, cy, w, h], dtype=torch.float32)
+			presence[i] = 1
 
 		mmps_tensor = torch.tensor(mm_per_sec == 50, dtype=torch.float32)
-		return (image_tensor, target_bbox, mmps_tensor)
+		return (image_tensor, target_bbox, presence, mmps_tensor)
 
 __all__ = ('ECGSyntheticDataset',)

@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
@@ -23,12 +24,15 @@ class ECGDetectionLearning(LearningEnvironment):
 		return (model, dataloader, optimizer)
 
 	def train_step(self, model, _, batch):
-		images, target_bbox, mmps = batch
-		pred_bbox, pred_mmps = model(images)
+		images, target_bbox, presence, mmps = batch
+		pred_bbox, pred_presence, pred_mmps = model(images)
 
-		bbox_loss = self.__mse_loss(pred_bbox, target_bbox)
+		mask = presence > 0.5
+		bbox_loss = self.__mse_loss(pred_bbox[mask], target_bbox[mask])
+		presence_loss = self.__bce_loss(pred_presence, presence)
 		mmps_loss = self.__bce_loss(pred_mmps, mmps)
-		loss = bbox_loss + mmps_loss
+
+		loss = bbox_loss + presence_loss + mmps_loss
 		return loss
 
 __all__ = ('ECGDetectionLearning',)
