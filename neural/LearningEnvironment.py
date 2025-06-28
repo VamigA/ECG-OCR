@@ -7,7 +7,7 @@ import torch
 from tqdm import tqdm
 
 class LearningEnvironment(ABC):
-	def __init__(self, epochs=10, save_every=1, epoch_path='learning/epoch_{}.pth', model_path='learning/model.pth'):
+	def __init__(self, epochs=20, save_every=1, epoch_path='learning/epoch_{}.pth', model_path='learning/model.pth'):
 		self.__epochs = epochs
 		self.__save_every = save_every
 		self.__epoch_path = epoch_path

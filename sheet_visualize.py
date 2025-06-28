@@ -20,7 +20,7 @@ for i, (x, y) in enumerate(sheet_corners):
 
 model = ECGSheetDetectionModel()
 img_tensor = transforms.ToTensor()(image).unsqueeze(0)
-state = torch.load('learning/epoch_4.pth', map_location='cpu')
+state = torch.load('learning/model.pth', map_location='cpu')
 if 'model' in state:
 	model.load_state_dict(state['model'])
 else:
@@ -33,7 +33,7 @@ with torch.no_grad():
 		plt.scatter([x], [y], color='red', s=80, marker='x')
 		plt.text(x, y + 10, f'Pred {i + 1}', color='red', fontsize=12)
 
-plt.title('ECG Sheet Corners: Green = True, Red = Predicted', fontsize=14)
+plt.title('ECG sheet corners: green = true, red = predicted', fontsize=14)
 plt.axis('off')
 plt.tight_layout()
 plt.show()
