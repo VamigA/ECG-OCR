@@ -42,28 +42,31 @@ class ECGSheetAugmentor:
 				A.ISONoise(color_shift=(0.02, 0.07), intensity=(0.1, 0.3), p=0.2),
 				A.MultiplicativeNoise(multiplier=(0.95, 1.05), per_channel=True, p=0.2),
 			],
-			bbox_params=A.BboxParams(format='pascal_voc', label_fields=('keys',)),
+			keypoint_params=A.KeypointParams(format='xy', remove_invisible=False),
 		)
 
 	def augment(
 		self, pil_image: Image.Image, layout: dict[str, tuple[int, int, int, int]],
-	) -> tuple[Image.Image, dict[str, tuple[int, int, int, int]]]:
-		image, new_layout = self.__place_on_background(np.array(pil_image), layout)
+	) -> tuple[Image.Image, dict[str, tuple[tuple[int, int], ...]]]:
+		w, h = pil_image.width, pil_image.height
+		new_layout = {'sheet': ((0, 0), (w, 0), (w, h), (0, h))}
+		for key, (x0, y0, x1, y1) in layout.items():
+			new_layout[key] = ((x0, y0), (x1, y0), (x1, y1), (x0, y1))
+
+		image = self.__place_on_background(np.array(pil_image), new_layout)
 
 		augmented = self.__augment(
 			image=image,
-			bboxes=tuple(new_layout.values()),
-			keys=tuple(new_layout.keys()),
+			keypoints=tuple(point for key in new_layout.keys() for point in new_layout[key]),
+			keypoint_labels=('',) * len(new_layout) * 4,
 		)
 
-		return (
-			Image.fromarray(augmented['image']),
-			{key: tuple(map(int, bbox)) for key, bbox in zip(augmented['keys'], augmented['bboxes'])},
-		)
+		for i, key in enumerate(new_layout.keys()):
+			new_layout[key] = tuple((int(x), int(y)) for x, y in augmented['keypoints'][i * 4:(i + 1) * 4])
 
-	def __place_on_background(
-		self, fg_image: np.ndarray, layout: dict[str, tuple[int, int, int, int]],
-	) -> tuple[np.ndarray, dict[str, tuple[int, int, int, int]]]:
+		return (Image.fromarray(augmented['image']), new_layout)
+
+	def __place_on_background(self, fg_image: np.ndarray, layout: dict[str, tuple[tuple[int, int], ...]]) -> np.ndarray:
 		scale = random.uniform(0.9, 1.1)
 		fg_h, fg_w = fg_image.shape[:2]
 		fg_w_new, fg_h_new = int(fg_w * scale), int(fg_h * scale)
@@ -80,15 +83,9 @@ class ECGSheetAugmentor:
 		composite = (bg_crop * (1 - alpha) + fg_resized[:, :, :3] * alpha).astype(np.uint8)
 		result[y_offset:y_offset + fg_h_new, x_offset:x_offset + fg_w_new] = composite
 
-		new_layout = {
-			key: (
-				int(x_start * scale) + x_offset,
-				int(y_start * scale) + y_offset,
-				int(x_end * scale) + x_offset,
-				int(y_end * scale) + y_offset,
-			) for key, (x_start, y_start, x_end, y_end) in layout.items()
-		}
+		for key, points in layout.items():
+			layout[key] = tuple((int(x * scale) + x_offset, int(y * scale) + y_offset) for (x, y) in points)
 
-		return (result, new_layout)
+		return result
 
 __all__ = ('ECGSheetAugmentor',)

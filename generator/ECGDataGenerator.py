@@ -29,7 +29,7 @@ class ECGDataGenerator:
 		self.__sheet_linker = ECGSheetLinker()
 		self.__sheet_augmentor = ECGSheetAugmentor()
 
-	def generate(self) -> tuple[Image.Image, dict[str, dict[str, np.ndarray | tuple[int, int, int, int]]]]:
+	def generate(self) -> tuple[Image.Image, dict]:
 		mm_per_sec = random.choice(self.__MM_PER_SEC)
 		self.__lead_generator.mm_per_sec = mm_per_sec
 
@@ -50,15 +50,19 @@ class ECGDataGenerator:
 		gray = image.convert('L')
 
 		result = {
-			lead_name: {
-				'signal': np.zeros(self.__SECONDS * self.__SAMPLING_RATE),
-				'bbox': (-1, -1, -1, -1),
-				'percentage': 0,
-			} for lead_name in ECGLeadGenerator.LEAD_NAMES
+			'sheet': new_layout['sheet'],
+			'mm_per_sec': mm_per_sec,
+			'leads': {
+				lead_name: {
+					'signal': np.zeros(self.__SECONDS * self.__SAMPLING_RATE),
+					'corners': ((-1, -1), (-1, -1), (-1, -1), (-1, -1)),
+					'percentage': 0,
+				} for lead_name in ECGLeadGenerator.LEAD_NAMES
+			},
 		}
 
 		for key, (x_start, _, x_end, _) in layout.items():
-			if key.startswith('label') or key not in new_layout:
+			if key.startswith('label'):
 				continue
 			elif key.startswith('rhythm'):
 				lead_name = key[7:].split('_')[0]
@@ -67,20 +71,20 @@ class ECGDataGenerator:
 
 			width = x_end - x_start
 			percentage = width / ECGLeadGenerator.IMG_SIZE[0]
-			if percentage > result[lead_name]['percentage']:
+			if percentage > result['leads'][lead_name]['percentage']:
 				duration = width / self.__lead_generator.pixels_per_mm / mm_per_sec
 				values = int(duration * self.__SAMPLING_RATE)
 
-				result[lead_name]['signal'][:values] = leads[lead_name][1][:values]
-				result[lead_name]['bbox'] = new_layout[key]
-				result[lead_name]['percentage'] = percentage
+				result['leads'][lead_name]['signal'][:values] = leads[lead_name][1][:values]
+				result['leads'][lead_name]['corners'] = new_layout[key]
+				result['leads'][lead_name]['percentage'] = percentage
 
-		for data in result.values():
+		for data in result['leads'].values():
 			del data['percentage']
 
-		return (gray, result, mm_per_sec)
+		return (gray, result)
 
-	def generate_no_errors(self) -> tuple[Image.Image, dict[str, dict[str, np.ndarray | tuple[int, int, int, int]]]]:
+	def generate_no_errors(self) -> tuple[Image.Image, dict]:
 		for _ in range(self.__NUM_ATTEMPTS):
 			try:
 				return self.generate()
